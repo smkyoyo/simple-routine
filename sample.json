@@ -1,0 +1,51 @@
+[
+  {
+    "id": "r3",
+    "name": "모닝루틴",
+    "color": "#4a7fc1",
+    "emoji": "🌅",
+    "schedule": "weekday"
+  },
+  {
+    "id": "r1",
+    "name": "태용영어숙제",
+    "color": "#8eb84a",
+    "emoji": "👦",
+    "schedule": "weekday"
+  },
+  {
+    "id": "r1774351172674",
+    "name": "책읽어주기",
+    "color": "#e84a8a",
+    "emoji": "🦄",
+    "schedule": "all"
+  },
+  {
+    "id": "r2",
+    "name": "헬스장",
+    "color": "#4a7fc1",
+    "emoji": "💪",
+    "schedule": "all"
+  },
+  {
+    "id": "r1774351290509",
+    "name": "말해보카",
+    "color": "#7c5cbf",
+    "emoji": "🌍",
+    "schedule": "all"
+  },
+  {
+    "id": "r1774352669207",
+    "name": "태용한글공부",
+    "color": "#c1844a",
+    "emoji": "👦",
+    "schedule": "all"
+  },
+  {
+    "id": "r1774352682109",
+    "name": "태용수학공부",
+    "color": "#4a4a8a",
+    "emoji": "👦",
+    "schedule": "all"
+  }
+]
