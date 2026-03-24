@@ -494,6 +494,8 @@
     <div class="color-grid" id="colorGrid"></div>
     <div class="modal-label">아이콘</div>
     <div class="emoji-grid" id="emojiGrid"></div>
+    <div class="modal-label">루틴 주기</div>
+    <div class="schedule-grid" id="scheduleGrid" style="display:flex;gap:8px;margin-bottom:14px;"></div>
     <div class="modal-btns">
       <button class="btn-cancel" id="cancelAdd">취소</button>
       <button class="btn-confirm" id="confirmAdd">추가하기</button>
@@ -511,6 +513,8 @@
     <div class="color-grid" id="editColorGrid"></div>
     <div class="modal-label">아이콘</div>
     <div class="emoji-grid" id="editEmojiGrid"></div>
+    <div class="modal-label">루틴 주기</div>
+    <div class="schedule-grid" id="editScheduleGrid" style="display:flex;gap:8px;margin-bottom:14px;"></div>
     <div class="modal-btns">
       <button class="btn-cancel" id="deleteRoutineBtn" style="color:#e8524a;border-color:#e8524a;">🗑 삭제</button>
       <button class="btn-cancel" id="cancelEdit">취소</button>
@@ -562,9 +566,9 @@
   // ── STATE ──────────────────────────────────────────────────────
   let state = {
     routines: [
-      { id: 'r1', name: '아이 숙제', color: '#e8524a', emoji: '📚' },
-      { id: 'r2', name: '헬스장', color: '#4a9e6b', emoji: '💪' },
-      { id: 'r3', name: '모닝루틴', color: '#4a7fc1', emoji: '🌅' },
+      { id: 'r1', name: '아이 숙제', color: '#e8524a', emoji: '📚', schedule: 'weekday' },
+      { id: 'r2', name: '헬스장', color: '#4a9e6b', emoji: '💪', schedule: 'all' },
+      { id: 'r3', name: '모닝루틴', color: '#4a7fc1', emoji: '🌅', schedule: 'all' },
     ],
     stamps: {},
     viewYear: new Date().getFullYear(),
@@ -588,7 +592,7 @@
     showLoading(true);
     const row = await dbGet();
     if (row) {
-      state.routines = row.routines || state.routines;
+      state.routines = (row.routines || state.routines).map(normalizeRoutine);
       state.stamps = row.stamps || {};
     }
     showLoading(false);
@@ -610,6 +614,29 @@
   }
 
   function routineById(id) { return state.routines.find(r => r.id === id); }
+
+  function normalizeRoutine(routine) {
+    if (!routine.schedule) routine.schedule = 'all';
+    return routine;
+  }
+
+  function scheduleLabel(schedule) {
+    if (schedule === 'weekday') return '평일';
+    if (schedule === 'weekend') return '주말';
+    return '매일';
+  }
+
+  function countTargetDays(year, month, schedule) {
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    let count = 0;
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dow = new Date(year, month, d).getDay();
+      if (schedule === 'weekday' && dow >= 1 && dow <= 5) count++;
+      else if (schedule === 'weekend' && (dow === 0 || dow === 6)) count++;
+      else if (schedule === 'all') count++;
+    }
+    return count;
+  }
 
   let dragSrcId = null;
 
@@ -819,13 +846,14 @@
       Object.entries(state.stamps).forEach(([k, ids]) => {
         if (k.startsWith(prefix) && ids.includes(r.id)) count++;
       });
+      const goal = countTargetDays(y, m, r.schedule || 'all');
       const card = document.createElement('div');
       card.className = 'stat-card';
       card.innerHTML = `
         <div class="stat-icon" style="background:${r.color}22">${r.emoji}</div>
         <div class="stat-info">
-          <div class="stat-label">${r.name}</div>
-          <div class="stat-count" style="color:${r.color}">${count}<span style="font-family:'Gowun Dodum';font-size:13px;color:var(--ink-light)">일</span></div>
+          <div class="stat-label">${r.name} · ${scheduleLabel(r.schedule)}</div>
+          <div class="stat-count" style="color:${r.color}">${count}/${goal}<span style="font-family:'Gowun Dodum';font-size:13px;color:var(--ink-light)">일</span></div>
         </div>
       `;
       el.appendChild(card);
@@ -864,16 +892,28 @@
     '#e84a8a','#4ab8c8','#8eb84a','#c1844a','#4a4a8a','#7a7a7a',
   ];
   const PRESET_EMOJIS = ['👦','👧','🦄','🌍','📚','💪','🌅','🏃','🥗','💊','🧘','✍️','🎯','💧','😴','🎵','📖','🛁','🍎','🧹'];
+  const SCHEDULE_OPTIONS = [
+    { value: 'all', label: '매일'},
+    { value: 'weekday', label: '평일'},
+    { value: 'weekend', label: '주말'},
+  ];
 
   let pendingColor = PRESET_COLORS[0];
   let pendingEmoji = PRESET_EMOJIS[0];
+  let pendingSchedule = 'all';
+
+  let editColor = PRESET_COLORS[0];
+  let editEmoji = PRESET_EMOJIS[0];
+  let editSchedule = 'all';
 
   function openAddModal() {
     pendingColor = PRESET_COLORS[0];
     pendingEmoji = PRESET_EMOJIS[0];
+    pendingSchedule = 'all';
     document.getElementById('routineName').value = '';
     renderColorGrid();
     renderEmojiGrid();
+    renderScheduleGrid();
     document.getElementById('addModal').classList.add('open');
     setTimeout(() => document.getElementById('routineName').focus(), 100);
   }
@@ -902,6 +942,42 @@
     });
   }
 
+  function renderScheduleGrid() {
+    const g = document.getElementById('scheduleGrid');
+    g.innerHTML = '';
+    SCHEDULE_OPTIONS.forEach(opt => {
+      const btn = document.createElement('div');
+      btn.className = 'color-opt' + (opt.value === pendingSchedule ? ' selected' : '');
+      btn.style.background = opt.value === 'weekday' ? '#4a9e6b' : opt.value === 'weekend' ? '#4a7fc1' : '#e8524a';
+      btn.style.color = '#fff';
+      btn.style.display = 'flex';
+      btn.style.alignItems = 'center';
+      btn.style.justifyContent = 'center';
+      btn.style.fontSize = '12px';
+      btn.textContent = opt.label;
+      btn.addEventListener('click', () => { pendingSchedule = opt.value; renderScheduleGrid(); });
+      g.appendChild(btn);
+    });
+  }
+
+  function renderEditScheduleGrid() {
+    const g = document.getElementById('editScheduleGrid');
+    g.innerHTML = '';
+    SCHEDULE_OPTIONS.forEach(opt => {
+      const btn = document.createElement('div');
+      btn.className = 'color-opt' + (opt.value === editSchedule ? ' selected' : '');
+      btn.style.background = opt.value === 'weekday' ? '#4a9e6b' : opt.value === 'weekend' ? '#4a7fc1' : '#e8524a';
+      btn.style.color = '#fff';
+      btn.style.display = 'flex';
+      btn.style.alignItems = 'center';
+      btn.style.justifyContent = 'center';
+      btn.style.fontSize = '12px';
+      btn.textContent = opt.label;
+      btn.addEventListener('click', () => { editSchedule = opt.value; renderEditScheduleGrid(); });
+      g.appendChild(btn);
+    });
+  }
+
   document.getElementById('cancelAdd').addEventListener('click', () => {
     document.getElementById('addModal').classList.remove('open');
   });
@@ -919,6 +995,7 @@
       name,
       color: pendingColor,
       emoji: pendingEmoji,
+      schedule: pendingSchedule || 'all',
     });
     save();
     document.getElementById('addModal').classList.remove('open');
@@ -928,8 +1005,6 @@
 
   // ── EDIT MODAL ────────────────────────────────────────────────
   let editingId = null;
-  let editColor = PRESET_COLORS[0];
-  let editEmoji = PRESET_EMOJIS[0];
 
   function openEditModal(id) {
     const r = routineById(id);
@@ -937,9 +1012,11 @@
     editingId = id;
     editColor = r.color;
     editEmoji = r.emoji;
+    editSchedule = r.schedule || 'all';
     document.getElementById('editRoutineName').value = r.name;
     renderEditColorGrid();
     renderEditEmojiGrid();
+    renderEditScheduleGrid();
     document.getElementById('editModal').classList.add('open');
     setTimeout(() => document.getElementById('editRoutineName').focus(), 100);
   }
@@ -985,6 +1062,7 @@
     r.name = name;
     r.color = editColor;
     r.emoji = editEmoji;
+    r.schedule = editSchedule || 'all';
     save();
     document.getElementById('editModal').classList.remove('open');
     render();
