@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>루틴 대시보드</title>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Black+Han+Sans&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #faf8f4;
+    --paper: #fffefb;
+    --ink: #2a2118;
+    --ink-light: #8a7d6a;
+    --border: #e8e0d0;
+    --shadow: rgba(42,33,24,0.08);
+
+    /* 루틴 색상 */
+    --c1: #e8524a; /* 아이 숙제 */
+    --c2: #4a9e6b; /* 헬스장 */
+    --c3: #4a7fc1; /* 모닝루틴 */
+    --c4: #c1844a; /* 커스텀 4 */
+    --c5: #9b59b6; /* 커스텀 5 */
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    font-family: 'Gowun Dodum', sans-serif;
+    color: var(--ink);
+    min-height: 100vh;
+    padding: 24px 16px 80px;
+  }
+
+  /* HEADER */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 28px;
+  }
+
+  .month-nav {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .month-title {
+    font-family: 'Black Han Sans', sans-serif;
+    font-size: 28px;
+    letter-spacing: -1px;
+    color: var(--ink);
+  }
+
+  .nav-btn {
+    background: var(--paper);
+    border: 1.5px solid var(--border);
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--ink);
+    transition: background 0.15s, transform 0.1s;
+    box-shadow: 0 2px 6px var(--shadow);
+  }
+  .nav-btn:hover { background: var(--ink); color: #fff; transform: scale(1.05); }
+
+  .today-btn {
+    background: var(--ink);
+    color: #fff;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-family: 'Gowun Dodum', sans-serif;
+    font-size: 13px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .today-btn:hover { opacity: 0.75; }
+
+  /* ROUTINE LEGEND */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: var(--paper);
+    border: 1.5px solid var(--border);
+    border-radius: 24px;
+    padding: 5px 12px 5px 6px;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.15s, opacity 0.15s;
+    user-select: none;
+    box-shadow: 0 1px 4px var(--shadow);
+    position: relative;
+  }
+  .legend-item:hover { transform: translateY(-1px); box-shadow: 0 4px 10px var(--shadow); }
+  .legend-item.active { border-width: 2px; }
+  .legend-item.dragging { opacity: 0.4; transform: scale(0.97); box-shadow: none; }
+  .legend-item.drag-over { transform: translateX(4px); box-shadow: -3px 0 0 var(--ink); }
+
+  .drag-handle {
+    font-size: 11px;
+    color: var(--ink-light);
+    cursor: grab;
+    padding: 0 2px;
+    opacity: 0;
+    transition: opacity 0.15s;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .legend-item:hover .drag-handle { opacity: 1; }
+  .drag-handle:active { cursor: grabbing; }
+
+  .legend-dot {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px;
+  }
+
+  .legend-name {
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .legend-add {
+    background: var(--paper);
+    border: 1.5px dashed var(--border);
+    border-radius: 24px;
+    padding: 5px 12px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--ink-light);
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .legend-add:hover { color: var(--ink); border-color: var(--ink); }
+
+  /* SELECTED INDICATOR */
+  .mode-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    min-height: 28px;
+  }
+
+  .mode-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--paper);
+    border: 1.5px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 12px;
+    color: var(--ink-light);
+    transition: all 0.2s;
+  }
+  .mode-badge.has-selection {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: #fff;
+  }
+  .mode-badge-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.5;
+  }
+  .mode-badge.has-selection .mode-badge-dot {
+    opacity: 1;
+    background: var(--selected-color, #fff);
+  }
+
+  /* CALENDAR GRID */
+  .calendar {
+    background: var(--paper);
+    border-radius: 20px;
+    border: 1.5px solid var(--border);
+    overflow: hidden;
+    box-shadow: 0 4px 20px var(--shadow);
+  }
+
+  .dow-header {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    background: var(--ink);
+  }
+
+  .dow-cell {
+    text-align: center;
+    padding: 10px 0;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: rgba(255,255,255,0.7);
+  }
+  .dow-cell:first-child { color: #ff9e9e; }
+  .dow-cell:last-child { color: #9eceff; }
+
+  .days-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+  }
+
+  .day-cell {
+    min-height: 96px;
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 6px;
+    cursor: pointer;
+    transition: background 0.1s;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+  .day-cell:nth-child(7n) { border-right: none; }
+  .day-cell:hover { background: rgba(42,33,24,0.03); }
+  .day-cell.other-month { opacity: 0.3; }
+  .day-cell.today .day-num {
+    background: var(--ink);
+    color: #fff;
+    border-radius: 50%;
+    width: 26px; height: 26px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .day-cell.sun .day-num { color: #e8524a; }
+  .day-cell.sat .day-num { color: #4a7fc1; }
+  .day-cell.today .day-num { color: #fff !important; }
+
+  .day-num {
+    font-size: 13px;
+    font-weight: 700;
+    width: 26px; height: 26px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    border-radius: 50%;
+    transition: background 0.15s;
+    margin-bottom: 4px;
+  }
+
+  /* STAMPS */
+  .stamps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    flex: 1;
+    align-content: flex-start;
+  }
+
+  .stamp {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 17px;
+    cursor: pointer;
+    transition: transform 0.15s, opacity 0.15s;
+    position: relative;
+    animation: stampIn 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .stamp:hover { transform: scale(1.15); opacity: 0.85; }
+
+  @keyframes stampIn {
+    from { transform: scale(0.3) rotate(-10deg); opacity: 0; }
+    to { transform: scale(1) rotate(0deg); opacity: 1; }
+  }
+
+  /* STATS BAR */
+  .stats {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+  }
+
+  .stat-card {
+    background: var(--paper);
+    border: 1.5px solid var(--border);
+    border-radius: 16px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 2px 8px var(--shadow);
+    flex: 1;
+    min-width: 120px;
+  }
+
+  .stat-icon {
+    width: 32px; height: 32px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px;
+    flex-shrink: 0;
+  }
+
+  .stat-info { flex: 1; }
+  .stat-label { font-size: 11px; color: var(--ink-light); }
+  .stat-count { font-family: 'Black Han Sans', sans-serif; font-size: 22px; color: var(--ink); }
+
+  /* MODAL */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(42,33,24,0.4);
+    backdrop-filter: blur(4px);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--paper);
+    border-radius: 24px;
+    padding: 28px;
+    width: 320px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    animation: modalIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  @keyframes modalIn {
+    from { transform: scale(0.85) translateY(20px); opacity: 0; }
+    to { transform: scale(1) translateY(0); opacity: 1; }
+  }
+
+  .modal h3 { font-family: 'Black Han Sans', sans-serif; font-size: 18px; margin-bottom: 16px; }
+
+  .modal input[type="text"] {
+    width: 100%;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-family: 'Gowun Dodum', sans-serif;
+    font-size: 14px;
+    background: var(--bg);
+    color: var(--ink);
+    margin-bottom: 14px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .modal input:focus { border-color: var(--ink); }
+
+  .color-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .color-opt {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    border: 2.5px solid transparent;
+    cursor: pointer;
+    transition: transform 0.1s, border-color 0.1s;
+  }
+  .color-opt:hover { transform: scale(1.1); }
+  .color-opt.selected { border-color: var(--ink); transform: scale(1.1); }
+
+  .emoji-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+
+  .emoji-opt {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    border: 1.5px solid var(--border);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    transition: background 0.1s, transform 0.1s;
+    background: var(--bg);
+  }
+  .emoji-opt:hover { background: var(--border); transform: scale(1.1); }
+  .emoji-opt.selected { border-color: var(--ink); background: var(--ink); }
+
+  .modal-label { font-size: 11px; color: var(--ink-light); margin-bottom: 8px; letter-spacing: 0.5px; font-weight: 700; }
+
+  .modal-btns {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  .btn-cancel {
+    flex: 1;
+    padding: 10px;
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    background: var(--bg);
+    font-family: 'Gowun Dodum', sans-serif;
+    font-size: 14px;
+    cursor: pointer;
+    color: var(--ink);
+    transition: background 0.15s;
+  }
+  .btn-cancel:hover { background: var(--border); }
+
+  .btn-confirm {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 12px;
+    background: var(--ink);
+    color: #fff;
+    font-family: 'Gowun Dodum', sans-serif;
+    font-size: 14px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .btn-confirm:hover { opacity: 0.8; }
+
+  /* TOAST */
+  .toast {
+    position: fixed;
+    bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--ink);
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 30px;
+    font-size: 13px;
+    z-index: 200;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  @media (max-width: 500px) {
+    .day-cell { min-height: 64px; }
+    .stamp { width: 26px; height: 26px; font-size: 14px; }
+    .month-title { font-size: 22px; }
+    .stat-card { min-width: 80px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="month-nav">
+    <button class="nav-btn" id="prevBtn">←</button>
+    <span class="month-title" id="monthTitle"></span>
+    <button class="nav-btn" id="nextBtn">→</button>
+  </div>
+  <button class="today-btn" id="todayBtn">오늘</button>
+</div>
+
+<div class="legend" id="legend"></div>
+
+<div class="mode-indicator">
+  <div class="mode-badge" id="modeBadge">
+    <div class="mode-badge-dot"></div>
+    <span id="modeText">루틴을 선택해서 날짜에 도장 찍기</span>
+  </div>
+</div>
+
+<div class="calendar">
+  <div class="dow-header">
+    <div class="dow-cell">일</div>
+    <div class="dow-cell">월</div>
+    <div class="dow-cell">화</div>
+    <div class="dow-cell">수</div>
+    <div class="dow-cell">목</div>
+    <div class="dow-cell">금</div>
+    <div class="dow-cell">토</div>
+  </div>
+  <div class="days-grid" id="daysGrid"></div>
+</div>
+
+<div class="stats" id="stats"></div>
+
+<!-- Add Routine Modal -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal">
+    <h3>새 루틴 추가</h3>
+    <div class="modal-label">루틴 이름</div>
+    <input type="text" id="routineName" placeholder="예: 독서, 물 2L 마시기..." maxlength="12">
+    <div class="modal-label">색상</div>
+    <div class="color-grid" id="colorGrid"></div>
+    <div class="modal-label">아이콘</div>
+    <div class="emoji-grid" id="emojiGrid"></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" id="cancelAdd">취소</button>
+      <button class="btn-confirm" id="confirmAdd">추가하기</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Routine Modal -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <h3>루틴 수정</h3>
+    <div class="modal-label">루틴 이름</div>
+    <input type="text" id="editRoutineName" placeholder="루틴 이름" maxlength="12">
+    <div class="modal-label">색상</div>
+    <div class="color-grid" id="editColorGrid"></div>
+    <div class="modal-label">아이콘</div>
+    <div class="emoji-grid" id="editEmojiGrid"></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" id="deleteRoutineBtn" style="color:#e8524a;border-color:#e8524a;">🗑 삭제</button>
+      <button class="btn-cancel" id="cancelEdit">취소</button>
+      <button class="btn-confirm" id="confirmEdit">저장</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ── STATE ──────────────────────────────────────────────────────
+  const STORAGE_KEY = 'routine_dashboard_v2';
+
+  let state = {
+    routines: [
+      { id: 'r1', name: '아이 숙제', color: '#e8524a', emoji: '📚' },
+      { id: 'r2', name: '헬스장', color: '#4a9e6b', emoji: '💪' },
+      { id: 'r3', name: '모닝루틴', color: '#4a7fc1', emoji: '🌅' },
+    ],
+    stamps: {},     // { "YYYY-MM-DD": [routineId, ...] }
+    viewYear: new Date().getFullYear(),
+    viewMonth: new Date().getMonth(),
+    selectedRoutine: null,
+  };
+
+  function load() {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const data = JSON.parse(saved);
+        state.routines = data.routines || state.routines;
+        state.stamps = data.stamps || {};
+      }
+    } catch(e) {}
+  }
+
+  function save() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      routines: state.routines,
+      stamps: state.stamps,
+    }));
+  }
+
+  load();
+
+  // ── HELPERS ───────────────────────────────────────────────────
+  const MONTHS_KO = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+
+  function dateKey(y, m, d) {
+    return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  }
+
+  function today() {
+    const t = new Date();
+    return { y: t.getFullYear(), m: t.getMonth(), d: t.getDate() };
+  }
+
+  function routineById(id) { return state.routines.find(r => r.id === id); }
+
+  let dragSrcId = null;
+
+  // ── RENDER ────────────────────────────────────────────────────
+  function render() {
+    renderHeader();
+    renderLegend();
+    renderModeIndicator();
+    renderCalendar();
+    renderStats();
+  }
+
+  function renderHeader() {
+    document.getElementById('monthTitle').textContent =
+      `${state.viewYear}년 ${MONTHS_KO[state.viewMonth]}`;
+  }
+
+  function renderLegend() {
+    const el = document.getElementById('legend');
+    el.innerHTML = '';
+    state.routines.forEach((r, idx) => {
+      const item = document.createElement('div');
+      item.className = 'legend-item' + (state.selectedRoutine === r.id ? ' active' : '');
+      item.style.borderColor = state.selectedRoutine === r.id ? r.color : '';
+      item.draggable = true;
+      item.dataset.id = r.id;
+
+      // 드래그 핸들
+      const handle = document.createElement('span');
+      handle.className = 'drag-handle';
+      handle.textContent = '⠿';
+      handle.title = '드래그해서 순서 변경';
+      handle.addEventListener('mousedown', (e) => e.stopPropagation());
+      item.appendChild(handle);
+
+      const dot = document.createElement('div');
+      dot.className = 'legend-dot';
+      dot.style.background = r.color;
+      dot.textContent = r.emoji;
+      item.appendChild(dot);
+
+      const name = document.createElement('span');
+      name.className = 'legend-name';
+      name.textContent = r.name;
+      item.appendChild(name);
+
+      item.addEventListener('click', () => toggleSelect(r.id, r.color));
+
+      const editBtn = document.createElement('span');
+      editBtn.textContent = '✏️';
+      editBtn.title = '루틴 수정';
+      editBtn.style.cssText = 'font-size:11px;opacity:0;transition:opacity 0.15s;margin-left:2px;cursor:pointer;line-height:1;';
+      editBtn.addEventListener('click', (e) => { e.stopPropagation(); openEditModal(r.id); });
+      item.appendChild(editBtn);
+      item.addEventListener('mouseenter', () => { editBtn.style.opacity = '1'; });
+      item.addEventListener('mouseleave', () => { editBtn.style.opacity = '0'; });
+
+      // ── 드래그 이벤트 ──
+      item.addEventListener('dragstart', (e) => {
+        dragSrcId = r.id;
+        item.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      item.addEventListener('dragend', () => {
+        item.classList.remove('dragging');
+        document.querySelectorAll('.legend-item').forEach(el => el.classList.remove('drag-over'));
+      });
+      item.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        if (dragSrcId !== r.id) item.classList.add('drag-over');
+      });
+      item.addEventListener('dragleave', () => {
+        item.classList.remove('drag-over');
+      });
+      item.addEventListener('drop', (e) => {
+        e.preventDefault();
+        item.classList.remove('drag-over');
+        if (dragSrcId && dragSrcId !== r.id) {
+          const fromIdx = state.routines.findIndex(x => x.id === dragSrcId);
+          const toIdx = state.routines.findIndex(x => x.id === r.id);
+          if (fromIdx !== -1 && toIdx !== -1) {
+            const moved = state.routines.splice(fromIdx, 1)[0];
+            state.routines.splice(toIdx, 0, moved);
+            save();
+            render();
+            showToast('순서가 변경됐어요!');
+          }
+        }
+        dragSrcId = null;
+      });
+
+      el.appendChild(item);
+    });
+
+    const addBtn = document.createElement('button');
+    addBtn.className = 'legend-add';
+    addBtn.textContent = '+ 루틴 추가';
+    addBtn.addEventListener('click', openAddModal);
+    el.appendChild(addBtn);
+  }
+
+  function renderModeIndicator() {
+    const badge = document.getElementById('modeBadge');
+    const text = document.getElementById('modeText');
+    if (state.selectedRoutine) {
+      const r = routineById(state.selectedRoutine);
+      badge.classList.add('has-selection');
+      badge.style.setProperty('--selected-color', r.color);
+      badge.style.background = r.color;
+      badge.style.borderColor = r.color;
+      text.textContent = `${r.emoji} ${r.name} — 날짜 클릭으로 도장 찍기`;
+    } else {
+      badge.classList.remove('has-selection');
+      badge.style.background = '';
+      badge.style.borderColor = '';
+      text.textContent = '루틴을 선택해서 날짜에 도장 찍기';
+    }
+  }
+
+  function renderCalendar() {
+    const grid = document.getElementById('daysGrid');
+    grid.innerHTML = '';
+    const { viewYear: y, viewMonth: m } = state;
+    const t = today();
+
+    const firstDay = new Date(y, m, 1).getDay();
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    const daysInPrev = new Date(y, m, 0).getDate();
+
+    const cells = [];
+    // prev month padding
+    for (let i = firstDay - 1; i >= 0; i--) {
+      cells.push({ d: daysInPrev - i, cur: false, prev: true });
+    }
+    // current month
+    for (let d = 1; d <= daysInMonth; d++) {
+      cells.push({ d, cur: true });
+    }
+    // next month padding
+    const remaining = 42 - cells.length;
+    for (let d = 1; d <= remaining; d++) {
+      cells.push({ d, cur: false, next: true });
+    }
+
+    cells.forEach((cell, idx) => {
+      const div = document.createElement('div');
+      div.className = 'day-cell';
+
+      const dow = idx % 7;
+      if (dow === 0) div.classList.add('sun');
+      if (dow === 6) div.classList.add('sat');
+      if (!cell.cur) div.classList.add('other-month');
+
+      let cy = y, cm = m;
+      if (cell.prev) { cy = m === 0 ? y-1 : y; cm = m === 0 ? 11 : m-1; }
+      if (cell.next) { cy = m === 11 ? y+1 : y; cm = m === 11 ? 0 : m+1; }
+
+      const isToday = cell.cur && cy === t.y && cm === t.m && cell.d === t.d;
+      if (isToday) div.classList.add('today');
+
+      const numEl = document.createElement('div');
+      numEl.className = 'day-num';
+      numEl.textContent = cell.d;
+      div.appendChild(numEl);
+
+      const stampsDiv = document.createElement('div');
+      stampsDiv.className = 'stamps';
+      const key = dateKey(cy, cm, cell.d);
+      const dayStamps = (state.stamps[key] || []).slice().sort((a, b) => {
+        const ai = state.routines.findIndex(r => r.id === a);
+        const bi = state.routines.findIndex(r => r.id === b);
+        return ai - bi;
+      });
+      dayStamps.forEach(rid => {
+        const r = routineById(rid);
+        if (!r) return;
+        const s = document.createElement('div');
+        s.className = 'stamp';
+        s.style.background = r.color + '33';
+        s.style.border = `1.5px solid ${r.color}`;
+        s.title = r.name;
+        s.textContent = r.emoji;
+        s.addEventListener('click', (e) => {
+          e.stopPropagation();
+          removeStamp(key, rid);
+        });
+        stampsDiv.appendChild(s);
+      });
+      div.appendChild(stampsDiv);
+
+      div.addEventListener('click', () => {
+        if (state.selectedRoutine) addStamp(key, state.selectedRoutine);
+      });
+
+      grid.appendChild(div);
+    });
+  }
+
+  function renderStats() {
+    const el = document.getElementById('stats');
+    el.innerHTML = '';
+    const { viewYear: y, viewMonth: m } = state;
+    const prefix = `${y}-${String(m+1).padStart(2,'0')}-`;
+
+    state.routines.forEach(r => {
+      let count = 0;
+      Object.entries(state.stamps).forEach(([k, ids]) => {
+        if (k.startsWith(prefix) && ids.includes(r.id)) count++;
+      });
+      const card = document.createElement('div');
+      card.className = 'stat-card';
+      card.innerHTML = `
+        <div class="stat-icon" style="background:${r.color}22">${r.emoji}</div>
+        <div class="stat-info">
+          <div class="stat-label">${r.name}</div>
+          <div class="stat-count" style="color:${r.color}">${count}<span style="font-family:'Gowun Dodum';font-size:13px;color:var(--ink-light)">일</span></div>
+        </div>
+      `;
+      el.appendChild(card);
+    });
+  }
+
+  // ── ACTIONS ───────────────────────────────────────────────────
+  function toggleSelect(id, color) {
+    state.selectedRoutine = state.selectedRoutine === id ? null : id;
+    render();
+  }
+
+  function addStamp(key, rid) {
+    if (!state.stamps[key]) state.stamps[key] = [];
+    if (state.stamps[key].includes(rid)) {
+      showToast('이미 찍혀있어요! 도장을 클릭하면 지워져요.');
+      return;
+    }
+    state.stamps[key].push(rid);
+    save();
+    render();
+  }
+
+  function removeStamp(key, rid) {
+    if (!state.stamps[key]) return;
+    state.stamps[key] = state.stamps[key].filter(r => r !== rid);
+    if (!state.stamps[key].length) delete state.stamps[key];
+    save();
+    render();
+    showToast('도장을 지웠어요.');
+  }
+
+  // ── MODAL ─────────────────────────────────────────────────────
+  const PRESET_COLORS = [
+    '#e8524a','#e8804a','#d4b84a','#4a9e6b','#4a7fc1','#7c5cbf',
+    '#e84a8a','#4ab8c8','#8eb84a','#c1844a','#4a4a8a','#7a7a7a',
+  ];
+  const PRESET_EMOJIS = ['👦','👧','🦄','🌍','📚','💪','🌅','🏃','🥗','💊','🧘','✍️','🎯','💧','😴','🎵','📖','🛁','🍎','🧹'];
+
+  let pendingColor = PRESET_COLORS[0];
+  let pendingEmoji = PRESET_EMOJIS[0];
+
+  function openAddModal() {
+    pendingColor = PRESET_COLORS[0];
+    pendingEmoji = PRESET_EMOJIS[0];
+    document.getElementById('routineName').value = '';
+    renderColorGrid();
+    renderEmojiGrid();
+    document.getElementById('addModal').classList.add('open');
+    setTimeout(() => document.getElementById('routineName').focus(), 100);
+  }
+
+  function renderColorGrid() {
+    const g = document.getElementById('colorGrid');
+    g.innerHTML = '';
+    PRESET_COLORS.forEach(c => {
+      const btn = document.createElement('div');
+      btn.className = 'color-opt' + (c === pendingColor ? ' selected' : '');
+      btn.style.background = c;
+      btn.addEventListener('click', () => { pendingColor = c; renderColorGrid(); });
+      g.appendChild(btn);
+    });
+  }
+
+  function renderEmojiGrid() {
+    const g = document.getElementById('emojiGrid');
+    g.innerHTML = '';
+    PRESET_EMOJIS.forEach(e => {
+      const btn = document.createElement('div');
+      btn.className = 'emoji-opt' + (e === pendingEmoji ? ' selected' : '');
+      btn.textContent = e;
+      btn.addEventListener('click', () => { pendingEmoji = e; renderEmojiGrid(); });
+      g.appendChild(btn);
+    });
+  }
+
+  document.getElementById('cancelAdd').addEventListener('click', () => {
+    document.getElementById('addModal').classList.remove('open');
+  });
+
+  document.getElementById('addModal').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('addModal'))
+      document.getElementById('addModal').classList.remove('open');
+  });
+
+  document.getElementById('confirmAdd').addEventListener('click', () => {
+    const name = document.getElementById('routineName').value.trim();
+    if (!name) { showToast('루틴 이름을 입력해주세요.'); return; }
+    state.routines.push({
+      id: 'r' + Date.now(),
+      name,
+      color: pendingColor,
+      emoji: pendingEmoji,
+    });
+    save();
+    document.getElementById('addModal').classList.remove('open');
+    render();
+    showToast(`"${name}" 루틴이 추가됐어요!`);
+  });
+
+  // ── EDIT MODAL ────────────────────────────────────────────────
+  let editingId = null;
+  let editColor = PRESET_COLORS[0];
+  let editEmoji = PRESET_EMOJIS[0];
+
+  function openEditModal(id) {
+    const r = routineById(id);
+    if (!r) return;
+    editingId = id;
+    editColor = r.color;
+    editEmoji = r.emoji;
+    document.getElementById('editRoutineName').value = r.name;
+    renderEditColorGrid();
+    renderEditEmojiGrid();
+    document.getElementById('editModal').classList.add('open');
+    setTimeout(() => document.getElementById('editRoutineName').focus(), 100);
+  }
+
+  function renderEditColorGrid() {
+    const g = document.getElementById('editColorGrid');
+    g.innerHTML = '';
+    PRESET_COLORS.forEach(c => {
+      const btn = document.createElement('div');
+      btn.className = 'color-opt' + (c === editColor ? ' selected' : '');
+      btn.style.background = c;
+      btn.addEventListener('click', () => { editColor = c; renderEditColorGrid(); });
+      g.appendChild(btn);
+    });
+  }
+
+  function renderEditEmojiGrid() {
+    const g = document.getElementById('editEmojiGrid');
+    g.innerHTML = '';
+    PRESET_EMOJIS.forEach(e => {
+      const btn = document.createElement('div');
+      btn.className = 'emoji-opt' + (e === editEmoji ? ' selected' : '');
+      btn.textContent = e;
+      btn.addEventListener('click', () => { editEmoji = e; renderEditEmojiGrid(); });
+      g.appendChild(btn);
+    });
+  }
+
+  document.getElementById('cancelEdit').addEventListener('click', () => {
+    document.getElementById('editModal').classList.remove('open');
+  });
+
+  document.getElementById('editModal').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('editModal'))
+      document.getElementById('editModal').classList.remove('open');
+  });
+
+  document.getElementById('confirmEdit').addEventListener('click', () => {
+    const name = document.getElementById('editRoutineName').value.trim();
+    if (!name) { showToast('루틴 이름을 입력해주세요.'); return; }
+    const r = routineById(editingId);
+    if (!r) return;
+    r.name = name;
+    r.color = editColor;
+    r.emoji = editEmoji;
+    save();
+    document.getElementById('editModal').classList.remove('open');
+    render();
+    showToast(`"${name}"으로 수정됐어요!`);
+  });
+
+  document.getElementById('deleteRoutineBtn').addEventListener('click', () => {
+    const r = routineById(editingId);
+    if (!r) return;
+    if (!confirm(`"${r.name}" 루틴을 삭제할까요?\n찍힌 도장 기록도 모두 사라져요.`)) return;
+    // 도장 기록에서도 제거
+    Object.keys(state.stamps).forEach(k => {
+      state.stamps[k] = state.stamps[k].filter(id => id !== editingId);
+      if (!state.stamps[k].length) delete state.stamps[k];
+    });
+    state.routines = state.routines.filter(r => r.id !== editingId);
+    if (state.selectedRoutine === editingId) state.selectedRoutine = null;
+    save();
+    document.getElementById('editModal').classList.remove('open');
+    render();
+    showToast(`루틴이 삭제됐어요.`);
+  });
+
+
+  let toastTimer;
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+  }
+
+  // ── NAV ───────────────────────────────────────────────────────
+  document.getElementById('prevBtn').addEventListener('click', () => {
+    if (state.viewMonth === 0) { state.viewYear--; state.viewMonth = 11; }
+    else state.viewMonth--;
+    render();
+  });
+  document.getElementById('nextBtn').addEventListener('click', () => {
+    if (state.viewMonth === 11) { state.viewYear++; state.viewMonth = 0; }
+    else state.viewMonth++;
+    render();
+  });
+  document.getElementById('todayBtn').addEventListener('click', () => {
+    const t = today();
+    state.viewYear = t.y;
+    state.viewMonth = t.m;
+    render();
+  });
+
+  // ── INIT ──────────────────────────────────────────────────────
+  render();
+</script>
+</body>
+</html>
