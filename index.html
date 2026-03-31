@@ -502,6 +502,17 @@
     font-family: 'Gowun Dodum', sans-serif;
     font-weight: 400;
   }
+  .stat-meta {
+    margin-bottom: 8px;
+    font-size: 11px;
+    color: var(--ink-light);
+    font-family: 'Gowun Dodum', sans-serif;
+  }
+  .stat-pct {
+    font-size: 12px;
+    font-weight: 800;
+    color: inherit;
+  }
   .stat-bar-bg { height: 5px; background: var(--surface-container); border-radius: 99px; overflow: hidden; }
   .stat-bar-fill { height: 100%; border-radius: 99px; transition: width 0.6s cubic-bezier(0.34,1.56,0.64,1); }
 
@@ -1217,13 +1228,23 @@
     const { viewYear: y, viewMonth: m } = state;
     const prefix = `${y}-${String(m+1).padStart(2,'0')}-`;
 
-    state.routines.forEach(r => {
+    const stats = state.routines.map(r => {
       let count = 0;
       Object.entries(state.stamps).forEach(([k, ids]) => {
         if (k.startsWith(prefix) && ids.includes(r.id)) count++;
       });
       const goal = countTargetDays(y, m, r.schedule || 'all');
       const pct = goal > 0 ? Math.min(100, Math.round((count / goal) * 100)) : 0;
+      return { r, count, goal, pct };
+    });
+
+    stats.sort((a, b) => {
+      if (b.pct !== a.pct) return b.pct - a.pct;
+      if (b.count !== a.count) return b.count - a.count;
+      return a.r.name.localeCompare(b.r.name, 'ko');
+    });
+
+    stats.forEach(({ r, count, goal, pct }) => {
       const card = document.createElement('div');
       card.className = 'stat-card';
       card.innerHTML = `
@@ -1233,6 +1254,7 @@
             <span class="stat-label" title="${escapeHtml(r.name)}">${escapeHtml(r.name)}</span>
             <span class="stat-count" style="color:${r.color}">${count}<small>/${goal}일</small></span>
           </div>
+          <div class="stat-meta"><span class="stat-pct" style="color:${r.color}">${pct}%</span> 달성</div>
           <div class="stat-bar-bg">
             <div class="stat-bar-fill" style="width:${pct}%;background:linear-gradient(90deg,${r.color}cc,${r.color})"></div>
           </div>
