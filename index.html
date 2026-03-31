@@ -552,26 +552,43 @@
   }
 
   // ── DB ────────────────────────────────────────────────────────
+  async function getAuthHeaders() {
+    const { data: { session } } = await sb.auth.getSession();
+    return {
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${session ? session.access_token : SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json',
+    };
+  }
+
   async function dbGet() {
     if (!currentUserId) return null;
     try {
-      const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000));
-      const query = sb.from('routine_data').select('*').eq('user_id', currentUserId).maybeSingle();
-      const { data } = await Promise.race([query, timeout]);
-      return data || null;
+      const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 5000));
+      const fetchData = (async () => {
+        const headers = await getAuthHeaders();
+        const res = await fetch(
+          `${SUPABASE_URL}/rest/v1/routine_data?user_id=eq.${encodeURIComponent(currentUserId)}&select=*&limit=1`,
+          { headers }
+        );
+        if (!res.ok) return null;
+        const arr = await res.json();
+        return Array.isArray(arr) && arr.length > 0 ? arr[0] : null;
+      })();
+      return await Promise.race([fetchData, timeout]);
     } catch(e) { return null; }
   }
 
   async function dbSave(routines, stamps) {
     if (!currentUserId) return;
     try {
-      const { error } = await sb
-        .from('routine_data')
-        .upsert(
-          { user_id: currentUserId, routines, stamps, updated_at: new Date().toISOString() },
-          { onConflict: 'user_id' }
-        );
-      if (error) showToast('저장 실패 — 잠시 후 다시 시도해주세요.');
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/routine_data`, {
+        method: 'POST',
+        headers: { ...headers, 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify({ user_id: currentUserId, routines, stamps, updated_at: new Date().toISOString() }),
+      });
+      if (!res.ok) showToast('저장 실패 — 잠시 후 다시 시도해주세요.');
     } catch(e) { showToast('저장 실패 — 네트워크를 확인해주세요.'); }
   }
 
