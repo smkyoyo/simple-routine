@@ -499,21 +499,28 @@
   let currentUserId = null;
 
   // ── AUTH ──────────────────────────────────────────────────────
+  const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+
   // 로컬 개발용 바이패스
-  if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+  if (isLocal) {
     currentUserId = 'misong';
     document.getElementById('loginScreen').style.display = 'none';
     load();
   }
 
   sb.auth.onAuthStateChange(async (event, session) => {
+    // 토큰 갱신 등 불필요한 이벤트 무시
+    if (event !== 'SIGNED_IN' && event !== 'SIGNED_OUT' && event !== 'INITIAL_SESSION') return;
+
     if (session) {
+      // 이미 같은 유저로 로드된 경우 재로드 생략
+      if (currentUserId === session.user.id) return;
       currentUserId = session.user.id;
       updateUserUI(session.user);
       document.getElementById('loginScreen').style.display = 'none';
       await load();
     } else {
-      if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') return;
+      if (isLocal) return;
       currentUserId = null;
       document.getElementById('loginScreen').style.display = 'flex';
       document.getElementById('userInfo').style.display = 'none';
@@ -548,11 +555,9 @@
   async function dbGet() {
     if (!currentUserId) return null;
     try {
-      const { data } = await sb
-        .from('routine_data')
-        .select('*')
-        .eq('user_id', currentUserId)
-        .maybeSingle();
+      const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000));
+      const query = sb.from('routine_data').select('*').eq('user_id', currentUserId).maybeSingle();
+      const { data } = await Promise.race([query, timeout]);
       return data || null;
     } catch(e) { return null; }
   }
@@ -560,22 +565,25 @@
   async function dbSave(routines, stamps) {
     if (!currentUserId) return;
     try {
-      await sb
+      const { error } = await sb
         .from('routine_data')
         .upsert(
           { user_id: currentUserId, routines, stamps, updated_at: new Date().toISOString() },
           { onConflict: 'user_id' }
         );
-    } catch(e) {}
+      if (error) showToast('저장 실패 — 잠시 후 다시 시도해주세요.');
+    } catch(e) { showToast('저장 실패 — 네트워크를 확인해주세요.'); }
   }
 
   // ── STATE ──────────────────────────────────────────────────────
+  const DEFAULT_ROUTINES = [
+    { id: 'r1', name: '아이 숙제', color: '#e8524a', emoji: '📚', schedule: 'weekday' },
+    { id: 'r2', name: '헬스장', color: '#4a9e6b', emoji: '💪', schedule: 'all' },
+    { id: 'r3', name: '모닝루틴', color: '#4a7fc1', emoji: '🌅', schedule: 'all' },
+  ];
+
   let state = {
-    routines: [
-      { id: 'r1', name: '아이 숙제', color: '#e8524a', emoji: '📚', schedule: 'weekday' },
-      { id: 'r2', name: '헬스장', color: '#4a9e6b', emoji: '💪', schedule: 'all' },
-      { id: 'r3', name: '모닝루틴', color: '#4a7fc1', emoji: '🌅', schedule: 'all' },
-    ],
+    routines: DEFAULT_ROUTINES.map(r => ({ ...r })),
     stamps: {},
     viewYear: new Date().getFullYear(),
     viewMonth: new Date().getMonth(),
@@ -594,23 +602,30 @@
     document.getElementById('loadingOverlay').style.display = on ? 'flex' : 'none';
   }
 
+  let loadInProgress = false;
   async function load() {
+    if (loadInProgress) return;
+    loadInProgress = true;
     showLoading(true);
-    const row = await dbGet();
-    if (row) {
-      state.routines = (row.routines || state.routines).map(normalizeRoutine);
-      state.stamps = row.stamps || {};
-    } else {
-      // 새 유저: 기본 루틴으로 시작
-      state.routines = [
-        { id: 'r1', name: '아이 숙제', color: '#e8524a', emoji: '📚', schedule: 'weekday' },
-        { id: 'r2', name: '헬스장', color: '#4a9e6b', emoji: '💪', schedule: 'all' },
-        { id: 'r3', name: '모닝루틴', color: '#4a7fc1', emoji: '🌅', schedule: 'all' },
-      ];
-      state.stamps = {};
+    try {
+      const row = await dbGet();
+      if (row) {
+        state.routines = (row.routines || state.routines).map(normalizeRoutine);
+        state.stamps = row.stamps || {};
+      } else {
+        // 새 유저: 기본 루틴으로 시작
+        state.routines = DEFAULT_ROUTINES.map(r => ({ ...r }));
+        state.stamps = {};
+      }
+    } finally {
+      loadInProgress = false;
+      showLoading(false);
+      render();
     }
-    showLoading(false);
-    render();
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
   // ── HELPERS ───────────────────────────────────────────────────
@@ -863,10 +878,10 @@
       const card = document.createElement('div');
       card.className = 'stat-card';
       card.innerHTML = `
-        <div class="stat-icon" style="background:${r.color}20">${r.emoji}</div>
+        <div class="stat-icon" style="background:${r.color}20">${escapeHtml(r.emoji)}</div>
         <div class="stat-info">
           <div class="stat-top">
-            <span class="stat-label">${r.name} · ${scheduleLabel(r.schedule)}</span>
+            <span class="stat-label">${escapeHtml(r.name)} · ${scheduleLabel(r.schedule)}</span>
             <span class="stat-count" style="color:${r.color}">${count}<span style="font-size:11px;color:var(--ink-light);font-family:'Gowun Dodum'">/${goal}일</span></span>
           </div>
           <div class="stat-bar-bg">
@@ -1113,6 +1128,13 @@
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
   }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      document.getElementById('addModal').classList.remove('open');
+      document.getElementById('editModal').classList.remove('open');
+    }
+  });
 
   // ── NAV ───────────────────────────────────────────────────────
   document.getElementById('prevBtn').addEventListener('click', () => {
