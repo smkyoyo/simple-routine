@@ -497,6 +497,7 @@
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   let currentUserId = null;
+  let currentSession = null;
 
   // ── AUTH ──────────────────────────────────────────────────────
   const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
@@ -513,6 +514,7 @@
     if (event !== 'SIGNED_IN' && event !== 'SIGNED_OUT' && event !== 'INITIAL_SESSION') return;
 
     if (session) {
+      currentSession = session; // 세션 저장 (auth 헤더에서 직접 사용)
       // 이미 같은 유저로 로드된 경우 재로드 생략
       if (currentUserId === session.user.id) return;
       currentUserId = session.user.id;
@@ -520,6 +522,7 @@
       document.getElementById('loginScreen').style.display = 'none';
       await load();
     } else {
+      currentSession = null;
       if (isLocal) return;
       currentUserId = null;
       document.getElementById('loginScreen').style.display = 'flex';
@@ -552,11 +555,10 @@
   }
 
   // ── DB ────────────────────────────────────────────────────────
-  async function getAuthHeaders() {
-    const { data: { session } } = await sb.auth.getSession();
+  function getAuthHeaders() {
     return {
       'apikey': SUPABASE_ANON_KEY,
-      'Authorization': `Bearer ${session ? session.access_token : SUPABASE_ANON_KEY}`,
+      'Authorization': `Bearer ${currentSession ? currentSession.access_token : SUPABASE_ANON_KEY}`,
       'Content-Type': 'application/json',
     };
   }
@@ -566,7 +568,7 @@
     try {
       const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 5000));
       const fetchData = (async () => {
-        const headers = await getAuthHeaders();
+        const headers = getAuthHeaders();
         const res = await fetch(
           `${SUPABASE_URL}/rest/v1/routine_data?user_id=eq.${encodeURIComponent(currentUserId)}&select=*&limit=1`,
           { headers }
@@ -582,7 +584,7 @@
   async function dbSave(routines, stamps) {
     if (!currentUserId) return;
     try {
-      const headers = await getAuthHeaders();
+      const headers = getAuthHeaders();
       const res = await fetch(`${SUPABASE_URL}/rest/v1/routine_data`, {
         method: 'POST',
         headers: { ...headers, 'Prefer': 'resolution=merge-duplicates,return=minimal' },
