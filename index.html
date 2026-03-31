@@ -669,11 +669,17 @@
   function scheduleLabel(schedule) {
     if (schedule === 'weekday') return '평일';
     if (schedule === 'weekend') return '주말';
+    if (schedule === 'weekly') return '주 1회';
     return '매일';
   }
 
   function countTargetDays(year, month, schedule) {
     const daysInMonth = new Date(year, month + 1, 0).getDate();
+    if (schedule === 'weekly') {
+      // 해당 월에 걸쳐있는 주(週) 수
+      const firstDow = new Date(year, month, 1).getDay();
+      return Math.ceil((firstDow + daysInMonth) / 7);
+    }
     let count = 0;
     for (let d = 1; d <= daysInMonth; d++) {
       const dow = new Date(year, month, d).getDay();
@@ -948,6 +954,7 @@
     { value: 'all', label: '매일'},
     { value: 'weekday', label: '평일'},
     { value: 'weekend', label: '주말'},
+    { value: 'weekly', label: '주 1회'},
   ];
 
   let pendingColor = PRESET_COLORS[0];
@@ -1000,7 +1007,7 @@
     SCHEDULE_OPTIONS.forEach(opt => {
       const btn = document.createElement('div');
       btn.className = 'color-opt' + (opt.value === pendingSchedule ? ' selected' : '');
-      btn.style.background = opt.value === 'weekday' ? '#4a9e6b' : opt.value === 'weekend' ? '#4a7fc1' : '#e8524a';
+      btn.style.background = opt.value === 'weekday' ? '#4a9e6b' : opt.value === 'weekend' ? '#4a7fc1' : opt.value === 'weekly' ? '#7c5cbf' : '#e8524a';
       btn.style.color = '#fff';
       btn.style.display = 'flex';
       btn.style.alignItems = 'center';
@@ -1018,7 +1025,7 @@
     SCHEDULE_OPTIONS.forEach(opt => {
       const btn = document.createElement('div');
       btn.className = 'color-opt' + (opt.value === editSchedule ? ' selected' : '');
-      btn.style.background = opt.value === 'weekday' ? '#4a9e6b' : opt.value === 'weekend' ? '#4a7fc1' : '#e8524a';
+      btn.style.background = opt.value === 'weekday' ? '#4a9e6b' : opt.value === 'weekend' ? '#4a7fc1' : opt.value === 'weekly' ? '#7c5cbf' : '#e8524a';
       btn.style.color = '#fff';
       btn.style.display = 'flex';
       btn.style.alignItems = 'center';
