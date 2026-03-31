@@ -1001,19 +1001,23 @@
     });
   }
 
+  function makeScheduleBtn(opt, isSelected) {
+    const btn = document.createElement('div');
+    btn.className = 'color-opt' + (isSelected ? ' selected' : '');
+    btn.style.cssText = `
+      width:auto; height:34px; padding:0 12px; white-space:nowrap;
+      background:${opt.value === 'weekday' ? '#4a9e6b' : opt.value === 'weekend' ? '#4a7fc1' : opt.value === 'weekly' ? '#7c5cbf' : '#e8524a'};
+      color:#fff; display:flex; align-items:center; justify-content:center; font-size:12px;
+    `;
+    btn.textContent = opt.label;
+    return btn;
+  }
+
   function renderScheduleGrid() {
     const g = document.getElementById('scheduleGrid');
     g.innerHTML = '';
     SCHEDULE_OPTIONS.forEach(opt => {
-      const btn = document.createElement('div');
-      btn.className = 'color-opt' + (opt.value === pendingSchedule ? ' selected' : '');
-      btn.style.background = opt.value === 'weekday' ? '#4a9e6b' : opt.value === 'weekend' ? '#4a7fc1' : opt.value === 'weekly' ? '#7c5cbf' : '#e8524a';
-      btn.style.color = '#fff';
-      btn.style.display = 'flex';
-      btn.style.alignItems = 'center';
-      btn.style.justifyContent = 'center';
-      btn.style.fontSize = '12px';
-      btn.textContent = opt.label;
+      const btn = makeScheduleBtn(opt, opt.value === pendingSchedule);
       btn.addEventListener('click', () => { pendingSchedule = opt.value; renderScheduleGrid(); });
       g.appendChild(btn);
     });
@@ -1023,15 +1027,7 @@
     const g = document.getElementById('editScheduleGrid');
     g.innerHTML = '';
     SCHEDULE_OPTIONS.forEach(opt => {
-      const btn = document.createElement('div');
-      btn.className = 'color-opt' + (opt.value === editSchedule ? ' selected' : '');
-      btn.style.background = opt.value === 'weekday' ? '#4a9e6b' : opt.value === 'weekend' ? '#4a7fc1' : opt.value === 'weekly' ? '#7c5cbf' : '#e8524a';
-      btn.style.color = '#fff';
-      btn.style.display = 'flex';
-      btn.style.alignItems = 'center';
-      btn.style.justifyContent = 'center';
-      btn.style.fontSize = '12px';
-      btn.textContent = opt.label;
+      const btn = makeScheduleBtn(opt, opt.value === editSchedule);
       btn.addEventListener('click', () => { editSchedule = opt.value; renderEditScheduleGrid(); });
       g.appendChild(btn);
     });
